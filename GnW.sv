@@ -166,16 +166,35 @@ module emu
   // 1 - D-/TX
   // 2..6 - USR2..USR6
   // Set USER_OUT to 1 to read from USER_IN.
-  input   [6:0] USER_IN,
-  output  [6:0] USER_OUT,
+  output		USER_OSD,
+  output		[1:0] USER_MODE,
+  input			[7:0] USER_IN,
+  output		[7:0] USER_OUT,	
 
   input         OSD_STATUS
 );
 
 ///////// Default values for ports not used in this core /////////
+wire [15:0] joydb_1,joydb_2;
+wire        joydb_1ena,joydb_2ena;
+joydbmix joydbmix
+(
+  .CLK_JOY(CLK_50M),
+  .JOY_FLAG(status[63:61]),
+  .USER_IN(USER_IN),
+  .USER_OUT(USER_OUT),
+  .USER_MODE(USER_MODE),
+  .USER_OSD(USER_OSD),
+  .joydb_1ena(joydb_1ena),
+  .joydb_2ena(joydb_2ena),
+  .joydb_1(joydb_1),
+  .joydb_2(joydb_2)
+);
+wire [15:0]   joystick_0 = joydb_1ena ? {joydb_1[9],joydb_1[11]|(joydb_1[10]&joydb_1[5]),joydb_1[10],joydb_1[5:0]} : j0_USB;
+//wire [15:0]   joystick_1 = joydb_2ena ? {joydb_2[10],joydb_2[11]|(joydb_2[10]&joydb_2[5]),joydb_2[9],joydb_2[5:0]} : joydb_1ena ? joystick_0_USB : joystick_1_USB;
 
 assign ADC_BUS  = 'Z;
-assign USER_OUT = '1;
+//assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 // assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = 'Z;
@@ -210,6 +229,9 @@ localparam CONF_STR = {
   "-;",
   "O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
   "-;",
+  "oUV,UserIO Joystick,Off,DB15,DB9MD;", 
+  //"oT,UserIO Players, 1 Player,2 Players;",  //La variable T tiene que ser 0 para solo 1 player
+  "-;",
   "R0,Reset;",
   "-;",
   "J,jump,time,A,B,alarm;",
@@ -219,9 +241,9 @@ localparam CONF_STR = {
 
 wire forced_scandoubler;
 wire  [1:0] buttons;
-wire [31:0] status;
+wire [63:0] status;
 wire [10:0] ps2_key;
-wire [15:0] j0;
+wire [15:0] j0 = joystick_0;
 
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
@@ -241,7 +263,8 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
   .forced_scandoubler(forced_scandoubler),
 
-  .joystick_0(j0),
+  .joy_raw(joydb_1[5:0] | joydb_2[5:0]),
+  .joystick_0(j0_USB),
 
   .buttons(buttons),
   .status(status),

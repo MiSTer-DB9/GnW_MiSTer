@@ -4,7 +4,7 @@
 set -euo pipefail
 
 UPSTREAM_REPO="https://github.com/MiSTer-devel/GnW_MiSTer"
-CORE_NAME="GnW_MiSTer"
+CORE_NAME="GnW"
 MAIN_BRANCH="master"
 
 echo "Fetching upstream:"

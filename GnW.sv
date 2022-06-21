@@ -191,6 +191,7 @@ joydbmix joydbmix
   .joydb_2(joydb_2)
 );
 wire [15:0] j0 = joydb_1ena ? {joydb_1[9],joydb_1[11]|(joydb_1[10]&joydb_1[5]),joydb_1[10],joydb_1[5:0]} : j0_USB;
+wire [15:0] j1 = joydb_2ena ? {joydb_2[10],joydb_2[11]|(joydb_2[10]&joydb_2[5]),joydb_2[9],joydb_2[5:0]} : joydb_1ena ? j0_USB : j1_USB;
 
 assign ADC_BUS  = 'Z;
 //assign USER_OUT = '1;
@@ -229,7 +230,7 @@ localparam CONF_STR = {
   "O[11:10],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
   "-;",
   "oUV,UserIO Joystick,Off,DB15,DB9MD;", 
-  //"oT,UserIO Players, 1 Player,2 Players;",  //La variable T tiene que ser 0 para solo 1 player
+  "oT,UserIO Players, 1 Player,2 Players;", 
   "-;",
   "R0,Reset;",
   "-;",
@@ -243,7 +244,7 @@ wire  [1:0] buttons;
 wire [127:0] status;
 wire [10:0] ps2_key;
 wire [15:0] j0_USB;
-wire [15:0] j1;
+wire [15:0] j1_USB;
 
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
@@ -264,7 +265,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
   .joy_raw(joydb_1[5:0] | joydb_2[5:0]),
   .joystick_0(j0_USB),
-  .joystick_1(j1),
+  .joystick_1(j1_USB),
 
   .buttons(buttons),
   .status(status),

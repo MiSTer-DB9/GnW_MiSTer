@@ -215,18 +215,18 @@ assign BUTTONS = 0;
 
 //////////////////////////////////////////////////////////////////
 
-wire [1:0] ar = status[9:8];
-
-assign VIDEO_ARX = (!ar) ? 12'd4 : (ar - 1'd1);
-assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
-
+wire [1:0] ar = status[122:121];
+wire [1:0] scale = status[3:2];
 
 `include "build_id.v"
 localparam CONF_STR = {
   "GameNWatch;;",
   "F,BIN,Load File;",
   "-;",
-  "O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+  "-;",
+  "O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+  "O[3:2],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%;",
+  "O[11:10],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
   "-;",
   "oUV,UserIO Joystick,Off,DB15,DB9MD;", 
   //"oT,UserIO Players, 1 Player,2 Players;",  //La variable T tiene que ser 0 para solo 1 player
@@ -237,12 +237,13 @@ localparam CONF_STR = {
   "V,v",`BUILD_DATE
 };
 
-
+wire [21:0] gamma_bus;
 wire forced_scandoubler;
 wire  [1:0] buttons;
-wire [63:0] status;
+wire [127:0] status;
 wire [10:0] ps2_key;
 wire [15:0] j0_USB;
+wire [15:0] j1;
 
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
@@ -257,13 +258,13 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
   .clk_sys(clk_sys),
   .HPS_BUS(HPS_BUS),
-  .EXT_BUS(),
-  .gamma_bus(),
+  .gamma_bus(gamma_bus),
 
   .forced_scandoubler(forced_scandoubler),
 
   .joy_raw(joydb_1[5:0] | joydb_2[5:0]),
   .joystick_0(j0_USB),
+  .joystick_1(j1),
 
   .buttons(buttons),
   .status(status),
@@ -285,14 +286,14 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 ///////////////////////   CLOCKS   ///////////////////////////////
 
 wire locked;
-wire clk_sys, clk_27;
+wire clk_sys, clk_vid;
 
 pll pll
 (
   .refclk(CLK_50M),
   .rst(0),
   .outclk_0(clk_sys), // 50
-  .outclk_1(clk_27), // 25
+  .outclk_1(clk_vid), // 25
   .locked(locked)
 );
 
@@ -306,14 +307,15 @@ wire hblank, hsync;
 wire vblank, vsync;
 wire ce_pix;
 wire [9:0] hcnt, vcnt;
-assign VGA_DE = ~(hblank|vblank);
-assign VGA_HS = hsync;
-assign VGA_VS = vsync;
-assign CLK_VIDEO = clk_27;
+//assign VGA_DE = ~(hblank|vblank);
+//assign VGA_HS = hsync;
+//assign VGA_VS = vsync;
+assign CLK_VIDEO = clk_vid;
 assign CE_PIXEL = 1'b1;
+wire vga_de;
 
 hvgen hvgen(
-  .vclk(clk_27),
+  .vclk(clk_vid),
   .hb(hblank),
   .vb(vblank),
   .hs(hsync),
@@ -321,6 +323,45 @@ hvgen hvgen(
   .ce_pix(ce_pix),
   .hcnt(hcnt),
   .vcnt(vcnt)
+);
+
+
+video_freak video_freak
+(
+	.*,
+	.VGA_DE_IN(vga_de),
+	.VGA_DE(VGA_DE),
+
+	.ARX((!ar) ? 12'd4 : (ar - 1'd1)),
+	.ARY((!ar) ? 12'd3 : 12'd0),
+	.CROP_SIZE(0),
+	.CROP_OFF(0),
+	.SCALE(status[11:10])
+);
+
+video_mixer #(320, 0) mixer
+(
+  .*,
+  .CE_PIXEL(),
+  .hq2x(scale == 1),
+  .scandoubler(scale || forced_scandoubler),
+  .gamma_bus(gamma_bus),
+
+  .R(red),
+  .G(green),
+  .B(blue),
+
+  .HSync(hsync),
+  .VSync(vsync),
+  .HBlank(hblank),
+  .VBlank(vblank),
+
+  .VGA_R(VGA_R),
+  .VGA_G(VGA_G),
+  .VGA_B(VGA_B),
+  .VGA_VS(VGA_VS),
+  .VGA_HS(VGA_HS),
+  .VGA_DE(vga_de)
 );
 
 ////////////// CONFIG /////////////
@@ -425,9 +466,13 @@ end
 wire [24:0] rom_img_addr;
 wire rom_img_read;
 wire rom_img_data_ready = sdram_rdy;
+wire [7:0] red, green, blue;
+wire freeze_sync;
 
 wire frame;
-wire [18:0] px;
+//wire [18:0] px;
+wire [9:0] xx;
+wire [8:0] yy;
 wire [7:0] fb_color;
 
 renderer renderer(
@@ -451,24 +496,28 @@ renderer renderer(
   .disp_en(~reset),
 
   .frame(frame),
-  .px(px),
+//  .px(px),
+  .xx(xx),
+  .yy(yy),
   .fb_color(fb_color)
 );
 
-// VGA - WIP
-// reg [7:0] vram[345600];
-// reg [7:0] vram_data;
-// reg [18:0] vram_addr;
-// reg [7:0] vpal_addr;
-// always @(posedge clk_27) begin
-//   vram[px] <= fb_color;
-//   if (~ioctl_download) begin
-//     vram_addr <= vcnt*720+hcnt;
-//     vram_data <= vram[vram_addr];
-//     vpal_addr <= vram_data;
-//     { VGA_R, VGA_G, VGA_B } <= vram_pal[vpal_addr];
-//   end
-// end
+// VGA
+
+reg [7:0] vram[360*240];
+reg [7:0] vram_data;
+reg [18:0] vram_addr;
+reg [7:0] vpal_addr;
+always @(posedge clk_sys) begin
+  vram[yy[8:1]*360+xx[9:1]] <= fb_color;
+  if (~ioctl_download) begin
+    vram_addr <= vcnt*360+hcnt;
+    vram_data <= vram[vram_addr];
+    vpal_addr <= vram_data;
+    { blue, red, green } <= vram_pal[vpal_addr];
+  end
+end
+
 
 ///////////// MCU ///////////////
 

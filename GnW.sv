@@ -190,8 +190,7 @@ joydbmix joydbmix
   .joydb_1(joydb_1),
   .joydb_2(joydb_2)
 );
-wire [15:0]   joystick_0 = joydb_1ena ? {joydb_1[9],joydb_1[11]|(joydb_1[10]&joydb_1[5]),joydb_1[10],joydb_1[5:0]} : j0_USB;
-//wire [15:0]   joystick_1 = joydb_2ena ? {joydb_2[10],joydb_2[11]|(joydb_2[10]&joydb_2[5]),joydb_2[9],joydb_2[5:0]} : joydb_1ena ? joystick_0_USB : joystick_1_USB;
+wire [15:0] j0 = joydb_1ena ? {joydb_1[9],joydb_1[11]|(joydb_1[10]&joydb_1[5]),joydb_1[10],joydb_1[5:0]} : j0_USB;
 
 assign ADC_BUS  = 'Z;
 //assign USER_OUT = '1;
@@ -243,7 +242,7 @@ wire forced_scandoubler;
 wire  [1:0] buttons;
 wire [63:0] status;
 wire [10:0] ps2_key;
-wire [15:0] j0 = joystick_0;
+wire [15:0] j0_USB;
 
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;

@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-CORE_NAME="GnW_MiSTer"
+CORE_NAME="GnW"
 MAIN_BRANCH="master"
 COMPILATION_OUTPUT="output_files/GnW.rbf"
 

@@ -253,8 +253,8 @@ joydb joydb (
 
 assign USER_OUT = USER_OUT_DRIVE;
 // [MiSTer-DB9 END]
-wire [15:0] j0 = joydb_1ena ? (OSD_STATUS ? 16'b0 : {joydb_1[9],joydb_1[11],joydb_1[10],joydb_1[5:0]}) : j0_USB;
-wire [15:0] j1 = joydb_2ena ? (OSD_STATUS ? 16'b0 : {joydb_2[9],joydb_2[11],joydb_2[10],joydb_2[5:0]}) : joydb_1ena ? j0_USB : j1_USB;
+wire [15:0] j0 = joydb_1ena ? (OSD_STATUS ? 16'b0 : joydb_1_mapped[8:0]) : j0_USB;
+wire [15:0] j1 = joydb_2ena ? (OSD_STATUS ? 16'b0 : joydb_2_mapped[8:0]) : joydb_1ena ? j0_USB : j1_USB;
 
 assign ADC_BUS  = 'Z;
 //assign USER_OUT = '1;
